@@ -60,10 +60,10 @@ export function TrendCard({ trend, index }: { trend: TrendingTag; index: number 
             </div>
 
             <h3 className="font-bold text-base leading-tight text-foreground line-clamp-2">
-              {trend.title_hi}
+              {trend.title}
             </h3>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {trend.description_hi}
+              {trend.description}
             </p>
 
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/60">
