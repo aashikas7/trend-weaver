@@ -2,9 +2,6 @@
 
 A mobile-native prototype of an AI-powered Trending Tags system for ShareChat's Hindi-speaking, India-first audience.
 
-**Live:** _add your published URL here_
-**Loom walkthrough:** _add your video URL here_
-
 ---
 
 ## What this is
