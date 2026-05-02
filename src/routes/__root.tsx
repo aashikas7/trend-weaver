@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { LangProvider } from "@/lib/lang-context";
 
 import appCss from "../styles.css?url";
 
