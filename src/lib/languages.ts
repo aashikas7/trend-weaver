@@ -4,13 +4,11 @@ export type LangCode =
 
 export interface Language {
   code: LangCode;
-  name: string;        // Native name
-  english: string;     // English name
-  fontClass: string;   // tailwind font class
-  sample: string;      // sample greeting for UI
+  name: string;
+  english: string;
+  sample: string;
 }
 
 export const LANGUAGES: Language[] = [
-  { code: "hi",  name: "हिन्दी",     english: "Hindi",     fontClass: "font-devanagari", sample: "नमस्ते" },
-  { code: "ta",  name: "தமிழ்",      english: "Tamil",     fontClass: "font-tamil",      sample: "வணக்கம்" },
-  { code: "te",
+  { code: "hi",  name: "हिन्दी",        english: "Hindi",      sample: "नमस्ते" },
+  { code: "ta",  name: "தமிழ்",         english: "Tamil",      sample: "வணக்கம்" },
