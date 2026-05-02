@@ -1,2 +1,6 @@
-// stub
-export const _stub = 1;
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { LANGUAGES, type LangCode, getLang } from "@/lib/languages";
+
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const langCodes = LANGUAGES.map((l) => l.code) as [LangCode, ...LangCode[]];
