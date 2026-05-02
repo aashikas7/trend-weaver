@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { TrendingUp, Flame } from "lucide-react";
-import type { TrendingTag, CategoryKey } from "@/utils/trends.functions";
+import type { TrendingTag, CategoryKey } from "@/server/trends.functions";
 
 const categoryStyles: Record<CategoryKey, string> = {
   cricket: "bg-emerald-100 text-emerald-800",
