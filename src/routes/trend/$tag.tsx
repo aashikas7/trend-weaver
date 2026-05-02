@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Share2, Bookmark, Flame, Sparkles, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { z } from "zod";
 import { getTrendDetail, type TrendingTag, type TrendDetail } from "@/server/trends.functions";
+import { useLang } from "@/lib/lang-context";
+import { getUI } from "@/lib/languages";
 
 const searchSchema = z.object({ data: z.string().optional() });
 
@@ -11,7 +13,7 @@ export const Route = createFileRoute("/trend/$tag")({
   component: TrendDetailPage,
   notFoundComponent: () => (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-      ट्रेंड नहीं मिला
+      Trend not found
     </div>
   ),
   errorComponent: ({ error }) => (
@@ -33,24 +35,25 @@ function decodeTrend(data?: string): TrendingTag | null {
 function TrendDetailPage() {
   const router = useRouter();
   const { data } = Route.useSearch();
+  const { lang } = useLang();
+  const ui = getUI(lang);
   const trend = decodeTrend(data);
   const [detail, setDetail] = useState<TrendDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!trend) {
-      setLoading(false);
-      return;
-    }
+    if (!trend) { setLoading(false); return; }
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
         const res = await getTrendDetail({
           data: {
             tag: trend.tag,
-            title_hi: trend.title_hi,
-            description_hi: trend.description_hi,
+            title: trend.title,
+            description: trend.description,
             category: trend.category,
+            lang,
           },
         });
         if (!cancelled) setDetail(res);
@@ -58,16 +61,14 @@ function TrendDetailPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [trend]);
+    return () => { cancelled = true; };
+  }, [trend?.tag, lang]);
 
   if (!trend) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6">
-        <p className="text-muted-foreground text-sm">ट्रेंड डेटा नहीं मिला</p>
-        <Link to="/" className="text-primary font-semibold">होम पर जाएँ</Link>
+        <p className="text-muted-foreground text-sm">{ui.trendNotFound}</p>
+        <Link to="/" className="text-primary font-semibold">{ui.goHome}</Link>
       </div>
     );
   }
@@ -75,7 +76,6 @@ function TrendDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md min-h-screen bg-background relative pb-24">
-        {/* Hero */}
         <div className="relative overflow-hidden gradient-hero text-primary-foreground">
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
@@ -99,13 +99,13 @@ function TrendDetailPage() {
 
             <div className="mt-6">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider opacity-90">
-                <span>#{trend.rank} ट्रेंडिंग</span>
+                <span>#{trend.rank} {ui.trending}</span>
                 <span>•</span>
                 <span>{trend.category}</span>
               </div>
               <div className="text-5xl mt-2">{trend.emoji}</div>
-              <h1 className="mt-1 text-2xl font-black leading-tight">{trend.title_hi}</h1>
-              <p className="mt-1 text-sm opacity-95">{trend.description_hi}</p>
+              <h1 className="mt-1 text-2xl font-black leading-tight">{trend.title}</h1>
+              <p className="mt-1 text-sm opacity-95">{trend.description}</p>
               <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-mono font-bold">
                 {trend.tag}
               </div>
@@ -113,22 +113,20 @@ function TrendDetailPage() {
           </div>
         </div>
 
-        {/* Stats strip */}
         <div className="px-4 -mt-4">
           <div className="rounded-2xl bg-card shadow-pop p-3 grid grid-cols-3 gap-2">
-            <Stat label="हीट स्कोर" value={String(trend.heat)} icon={<Flame className="h-3.5 w-3.5 text-primary" />} />
-            <Stat label="पोस्ट्स" value={trend.posts_count} />
-            <Stat label="क्षेत्र" value={trend.region ?? "अखिल भारत"} small />
+            <Stat label={ui.heatScore} value={String(trend.heat)} icon={<Flame className="h-3.5 w-3.5 text-primary" />} />
+            <Stat label={ui.posts} value={trend.posts_count} />
+            <Stat label={ui.region} value={trend.region ?? ui.allIndia} small />
           </div>
         </div>
 
-        {/* Sources */}
         <div className="px-4 mt-4">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            सिग्नल स्रोत
+            {ui.signalSources}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {trend.sources.map((s) => (
+            {trend.sources.map((s: string) => (
               <span key={s} className="px-2.5 py-1 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold">
                 {s}
               </span>
@@ -136,11 +134,10 @@ function TrendDetailPage() {
           </div>
         </div>
 
-        {/* AI summary */}
         <section className="px-4 mt-5">
           <div className="rounded-2xl gradient-card border border-border shadow-card p-4">
             <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary mb-2">
-              <Sparkles className="h-3.5 w-3.5" /> AI सारांश
+              <Sparkles className="h-3.5 w-3.5" /> {ui.aiSummary}
             </div>
             {loading ? (
               <div className="space-y-2 animate-pulse">
@@ -150,13 +147,13 @@ function TrendDetailPage() {
               </div>
             ) : (
               <>
-                <p className="text-sm text-foreground/90 leading-relaxed">{detail?.summary_hi}</p>
-                {detail?.why_trending_hi && (
+                <p className="text-sm text-foreground/90 leading-relaxed">{detail?.summary}</p>
+                {detail?.why_trending && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      क्यों ट्रेंड कर रहा है
+                      {ui.whyTrending}
                     </div>
-                    <p className="text-sm text-foreground/90">{detail.why_trending_hi}</p>
+                    <p className="text-sm text-foreground/90">{detail.why_trending}</p>
                   </div>
                 )}
               </>
@@ -164,10 +161,9 @@ function TrendDetailPage() {
           </div>
         </section>
 
-        {/* Posts */}
         <section className="px-4 mt-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-black text-base">टॉप पोस्ट्स</h2>
+            <h2 className="font-black text-base">{ui.topPosts}</h2>
             <span className="text-[11px] text-muted-foreground">{trend.tag}</span>
           </div>
           {loading && (
@@ -193,10 +189,9 @@ function TrendDetailPage() {
           </div>
         </section>
 
-        {/* Action footer */}
         <div className="fixed bottom-0 left-0 right-0 mx-auto max-w-md bg-surface/95 backdrop-blur-xl border-t border-border px-4 py-3 safe-bottom">
           <button className="w-full h-12 rounded-full gradient-hero text-primary-foreground font-bold shadow-glow active:scale-[0.98] transition-transform">
-            इस ट्रेंड पर पोस्ट करें ✨
+            {ui.postOnTrend}
           </button>
         </div>
       </div>
@@ -230,10 +225,10 @@ function PostCard({ post, index }: { post: TrendDetail["posts"][number]; index: 
             <span className="font-bold text-sm text-foreground truncate">{post.author}</span>
             <span className="text-xs text-muted-foreground truncate">{post.handle}</span>
             <span className="text-xs text-muted-foreground">•</span>
-            <span className="text-xs text-muted-foreground">{post.time_hi}</span>
+            <span className="text-xs text-muted-foreground">{post.time_label}</span>
           </div>
           <p className="mt-1.5 text-sm text-foreground/95 leading-relaxed whitespace-pre-line">
-            {post.text_hi}
+            {post.text}
           </p>
           <div className="mt-3 flex items-center gap-5 text-xs text-muted-foreground">
             <button className="flex items-center gap-1 hover:text-primary">
