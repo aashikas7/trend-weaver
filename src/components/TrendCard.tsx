@@ -44,7 +44,7 @@ export function TrendCard({ trend, index }: { trend: TrendingTag; index: number 
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  categoryStyles[trend.category] ?? "bg-muted text-muted-foreground"
+                  categoryStyles[trend.category_key] ?? "bg-muted text-muted-foreground"
                 }`}
               >
                 {trend.category}
