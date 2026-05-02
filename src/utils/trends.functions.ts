@@ -68,8 +68,8 @@ Rules:
 - Keep variety - not just cricket, mix different categories`;
 }
 
-export const getTrendingTags = createServerFn({ method: "GET" })
-  .inputValidator((data: { lang?: string }) => data)
+export const getTrendingTags = createServerFn({ method: "POST" })
+  .inputValidator((data: { lang?: string }) => data ?? {})
   .handler(async ({ data }): Promise<{ trends: TrendingTag[]; generated_at: string; error?: string }> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {

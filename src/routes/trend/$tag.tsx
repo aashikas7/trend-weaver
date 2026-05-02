@@ -2,7 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Share2, Bookmark, Flame, Sparkles, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { z } from "zod";
-import { getTrendDetail, type TrendingTag, type TrendDetail } from "@/server/trends.functions";
+import { getTrendDetail, type TrendingTag, type TrendDetail } from "@/utils/trends.functions";
 import { useLang } from "@/lib/lang-context";
 import { getUI } from "@/lib/languages";
 

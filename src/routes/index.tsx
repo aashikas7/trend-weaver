@@ -4,7 +4,7 @@ import { RefreshCw, Sparkles, AlertCircle } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { TrendCard } from "@/components/TrendCard";
-import { getTrendingTags, type TrendingTag } from "@/server/trends.functions";
+import { getTrendingTags, type TrendingTag } from "@/utils/trends.functions";
 import { useLang } from "@/lib/lang-context";
 import { getUI } from "@/lib/languages";
 
