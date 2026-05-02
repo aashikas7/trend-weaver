@@ -1,83 +1,85 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { type LangCode, getLang } from "@/lib/languages";
 
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-export type TrendCategory =
-  | "क्रिकेट"
-  | "मनोरंजन"
-  | "राजनीति"
-  | "समाचार"
-  | "त्योहार"
-  | "मौसम"
-  | "टेक"
-  | "बिज़नेस"
-  | "वायरल"
-  | "धार्मिक";
+export const CATEGORY_KEYS = ["cricket", "entertainment", "politics", "news", "festival", "weather", "tech", "business", "viral", "religious"] as const;
+export type CategoryKey = (typeof CATEGORY_KEYS)[number];
 
 export interface TrendingTag {
   rank: number;
-  tag: string; // hashtag in Hindi/English mix as used on ShareChat
-  title_hi: string; // Hindi headline
-  description_hi: string; // 1-line Hindi description
-  category: TrendCategory;
-  heat: number; // 0-100
-  posts_count: string; // human readable e.g. "2.3L पोस्ट"
-  sources: string[]; // e.g. ["समाचार","सोशल","सर्च"]
+  tag: string;
+  title: string;
+  description: string;
+  category: string;
+  category_key: CategoryKey;
+  heat: number;
+  posts_count: string;
+  sources: string[];
   emoji: string;
-  region?: string; // e.g. "अखिल भारत", "महाराष्ट्र"
+  region?: string;
 }
 
 const trendsSchema = z.object({
-  trends: z
-    .array(
-      z.object({
-        rank: z.number(),
-        tag: z.string(),
-        title_hi: z.string(),
-        description_hi: z.string(),
-        category: z.string(),
-        heat: z.number(),
-        posts_count: z.string(),
-        sources: z.array(z.string()),
-        emoji: z.string(),
-        region: z.string().optional(),
-      })
-    )
-    .min(10),
+  trends: z.array(
+    z.object({
+      rank: z.number(),
+      tag: z.string(),
+      title: z.string(),
+      description: z.string(),
+      category: z.string(),
+      category_key: z.enum(CATEGORY_KEYS),
+      heat: z.number(),
+      posts_count: z.string(),
+      sources: z.array(z.string()),
+      emoji: z.string(),
+      region: z.string().optional(),
+    })
+  ).min(8),
 });
 
-const SYSTEM_PROMPT = `तुम ShareChat के लिए एक trending tags क्यूरेटर हो। तुम्हारा काम है: आज भारत में, खासकर हिंदी बोलने वाले दर्शकों के लिए, जो भी सबसे ज़्यादा चर्चा में है उसकी एक ranked list देना।
+function buildSystemPrompt(langPromptName: string) {
+  return `You are a trending tags curator for ShareChat, India's leading vernacular social platform.
 
-Sources जिन पर ध्यान देना है (अपने knowledge और reasoning से अनुमान लगाओ):
-- क्रिकेट / खेल events (IPL, India matches, बड़े tournaments)
-- Bollywood / OTT releases, बड़े celebrity news
-- राजनीतिक events और बड़े bills/announcements
-- त्योहार और धार्मिक events (Diwali, Holi, Chhath, Eid, Navratri etc.)
-- मौसम events (बारिश, बाढ़, गर्मी की लहर, चक्रवात)
-- बड़े national news (RBI, बजट, accidents, awards)
-- वायरल social media moments, memes, reels trends
-- बड़ी tech launches जो India में मायने रखती हैं (iPhone, Jio, AI)
+Your job: produce a ranked list of what is trending in India today, written entirely in ${langPromptName}.
+
+Sources to consider (use your knowledge and reasoning):
+- Cricket / sports events (IPL, India matches, major tournaments)
+- Bollywood / OTT releases, big celebrity news
+- Political events and major bills/announcements
+- Festivals and religious events (Diwali, Holi, Chhath, Eid, Navratri etc.)
+- Weather events (rain, floods, heatwave, cyclone)
+- Major national news (RBI, budget, accidents, awards)
+- Viral social media moments, memes, reels trends
+- Big tech launches relevant to India (iPhone, Jio, AI)
 
 Rules:
-- कम से कम 12 trends दो
-- हर trend India / Hindi audience के लिए relevant हो — obscure foreign news मत डालो
-- titles और descriptions हिंदी में (Devanagari) लिखो, लेकिन hashtag का मूल नाम (#IndiaVsAustralia जैसे) रख सकते हो
-- heat score 60-99 के बीच, ranked decreasingly
-- description एक line का, ज़्यादा से ज़्यादा 80 अक्षर
-- sources array में से चुनो: "समाचार", "सोशल", "सर्च", "OTT", "खेल फ़ीड", "मौसम API", "ट्विटर", "YouTube"
-- category strictly इन में से एक: क्रिकेट, मनोरंजन, राजनीति, समाचार, त्योहार, मौसम, टेक, बिज़नेस, वायरल, धार्मिक
-- आज की तारीख के हिसाब से सोचो — मौसम, season, हाल के बड़े events, upcoming festivals
-- variety रखो — सिर्फ़ cricket नहीं, mix होना चाहिए`;
+- Give at least 12 trends
+- Every trend must be relevant to India / ${langPromptName}-speaking audience
+- Write titles and descriptions in ${langPromptName}
+- Hashtag can be in original form (#IndiaVsAustralia etc.)
+- heat score between 60-99, ranked decreasingly
+- description max 80 characters in one line
+- category_key must be one of: cricket, entertainment, politics, news, festival, weather, tech, business, viral, religious
+- category field should be the localized name of that category in ${langPromptName}
+- sources array from: news, social, search, OTT, sports feed, weather API, Twitter, YouTube (localized)
+- Think about today's date - season, recent big events, upcoming festivals
+- Keep variety - not just cricket, mix different categories`;
+}
 
-export const getTrendingTags = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ trends: TrendingTag[]; generated_at: string; error?: string }> => {
+export const getTrendingTags = createServerFn({ method: "GET" })
+  .inputValidator((data: { lang?: string }) => data)
+  .handler(async ({ data }): Promise<{ trends: TrendingTag[]; generated_at: string; error?: string }> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       return { trends: [], generated_at: new Date().toISOString(), error: "LOVABLE_API_KEY missing" };
     }
 
-    const today = new Date().toLocaleDateString("hi-IN", {
+    const langCode = (data?.lang ?? "hi") as LangCode;
+    const lang = getLang(langCode);
+
+    const today = new Date().toLocaleDateString("en-IN", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -94,10 +96,10 @@ export const getTrendingTags = createServerFn({ method: "GET" }).handler(
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: buildSystemPrompt(lang.promptName) },
             {
               role: "user",
-              content: `आज की तारीख: ${today}. भारत में आज trending top 12 tags की ranked list दो।`,
+              content: `Today's date: ${today}. Give me the top 12 trending tags in India, written in ${lang.promptName}.`,
             },
           ],
           tools: [
@@ -116,22 +118,12 @@ export const getTrendingTags = createServerFn({ method: "GET" }).handler(
                         properties: {
                           rank: { type: "number" },
                           tag: { type: "string" },
-                          title_hi: { type: "string" },
-                          description_hi: { type: "string" },
-                          category: {
+                          title: { type: "string", description: "Localized title" },
+                          description: { type: "string", description: "Localized description, max 80 chars" },
+                          category: { type: "string", description: "Localized category name" },
+                          category_key: {
                             type: "string",
-                            enum: [
-                              "क्रिकेट",
-                              "मनोरंजन",
-                              "राजनीति",
-                              "समाचार",
-                              "त्योहार",
-                              "मौसम",
-                              "टेक",
-                              "बिज़नेस",
-                              "वायरल",
-                              "धार्मिक",
-                            ],
+                            enum: ["cricket","entertainment","politics","news","festival","weather","tech","business","viral","religious"],
                           },
                           heat: { type: "number" },
                           posts_count: { type: "string" },
@@ -139,17 +131,7 @@ export const getTrendingTags = createServerFn({ method: "GET" }).handler(
                           emoji: { type: "string" },
                           region: { type: "string" },
                         },
-                        required: [
-                          "rank",
-                          "tag",
-                          "title_hi",
-                          "description_hi",
-                          "category",
-                          "heat",
-                          "posts_count",
-                          "sources",
-                          "emoji",
-                        ],
+                        required: ["rank","tag","title","description","category","category_key","heat","posts_count","sources","emoji"],
                       },
                     },
                   },
@@ -165,15 +147,12 @@ export const getTrendingTags = createServerFn({ method: "GET" }).handler(
       if (!res.ok) {
         const txt = await res.text();
         console.error("AI gateway error", res.status, txt);
-        return {
-          trends: [],
-          generated_at: new Date().toISOString(),
-          error: res.status === 429 ? "बहुत ज़्यादा requests, थोड़ी देर बाद try करें" : res.status === 402 ? "AI credits ख़त्म" : "AI gateway error",
-        };
+        const errMsg = res.status === 429 ? "Too many requests, try later" : res.status === 402 ? "AI credits exhausted" : "AI gateway error";
+        return { trends: [], generated_at: new Date().toISOString(), error: errMsg };
       }
 
-      const data = await res.json();
-      const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      const json = await res.json();
+      const args = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
       if (!args) {
         return { trends: [], generated_at: new Date().toISOString(), error: "No tool call returned" };
       }
@@ -188,42 +167,37 @@ export const getTrendingTags = createServerFn({ method: "GET" }).handler(
         error: e instanceof Error ? e.message : "Unknown error",
       };
     }
-  }
-);
+  });
 
 const detailSchema = z.object({
-  summary_hi: z.string(),
-  why_trending_hi: z.string(),
-  posts: z
-    .array(
-      z.object({
-        author: z.string(),
-        handle: z.string(),
-        avatar_emoji: z.string(),
-        time_hi: z.string(),
-        text_hi: z.string(),
-        likes: z.string(),
-        comments: z.string(),
-        shares: z.string(),
-      })
-    )
-    .min(3),
+  summary: z.string(),
+  why_trending: z.string(),
+  posts: z.array(
+    z.object({
+      author: z.string(),
+      handle: z.string(),
+      avatar_emoji: z.string(),
+      time_label: z.string(),
+      text: z.string(),
+      likes: z.string(),
+      comments: z.string(),
+      shares: z.string(),
+    })
+  ).min(3),
 });
 
 export type TrendDetail = z.infer<typeof detailSchema>;
 
 export const getTrendDetail = createServerFn({ method: "POST" })
-  .inputValidator((d: { tag: string; title_hi: string; description_hi: string; category: string }) => d)
+  .inputValidator((d: { tag: string; title: string; description: string; category: string; lang?: string }) => d)
   .handler(async ({ data }): Promise<TrendDetail & { error?: string }> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
-      return {
-        summary_hi: "AI service उपलब्ध नहीं है",
-        why_trending_hi: "",
-        posts: [],
-        error: "LOVABLE_API_KEY missing",
-      };
+      return { summary: "AI service unavailable", why_trending: "", posts: [], error: "LOVABLE_API_KEY missing" };
     }
+
+    const langCode = (data.lang ?? "hi") as LangCode;
+    const lang = getLang(langCode);
 
     try {
       const res = await fetch(AI_URL, {
@@ -234,12 +208,11 @@ export const getTrendDetail = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content:
-                "तुम ShareChat content team हो। एक trending tag के लिए हिंदी (Devanagari) में: (1) 2-3 lines का context summary, (2) 1 line में क्यों trending है, और (3) 3 realistic mock user posts generate करो जैसे असली ShareChat users लिखते हैं — informal, emojis के साथ, हिंदी में।",
+              content: `You are ShareChat content team. For a trending tag, generate in ${lang.promptName}: (1) 2-3 line context summary, (2) 1 line why it's trending, and (3) 3 realistic mock user posts as real ShareChat users would write - informal, with emojis, in ${lang.promptName}.`,
             },
             {
               role: "user",
-              content: `Tag: ${data.tag}\nTitle: ${data.title_hi}\nDescription: ${data.description_hi}\nCategory: ${data.category}`,
+              content: `Tag: ${data.tag}\nTitle: ${data.title}\nDescription: ${data.description}\nCategory: ${data.category}`,
             },
           ],
           tools: [
@@ -250,8 +223,8 @@ export const getTrendDetail = createServerFn({ method: "POST" })
                 parameters: {
                   type: "object",
                   properties: {
-                    summary_hi: { type: "string" },
-                    why_trending_hi: { type: "string" },
+                    summary: { type: "string" },
+                    why_trending: { type: "string" },
                     posts: {
                       type: "array",
                       items: {
@@ -260,26 +233,17 @@ export const getTrendDetail = createServerFn({ method: "POST" })
                           author: { type: "string" },
                           handle: { type: "string" },
                           avatar_emoji: { type: "string" },
-                          time_hi: { type: "string" },
-                          text_hi: { type: "string" },
+                          time_label: { type: "string" },
+                          text: { type: "string" },
                           likes: { type: "string" },
                           comments: { type: "string" },
                           shares: { type: "string" },
                         },
-                        required: [
-                          "author",
-                          "handle",
-                          "avatar_emoji",
-                          "time_hi",
-                          "text_hi",
-                          "likes",
-                          "comments",
-                          "shares",
-                        ],
+                        required: ["author","handle","avatar_emoji","time_label","text","likes","comments","shares"],
                       },
                     },
                   },
-                  required: ["summary_hi", "why_trending_hi", "posts"],
+                  required: ["summary","why_trending","posts"],
                 },
               },
             },
@@ -291,12 +255,7 @@ export const getTrendDetail = createServerFn({ method: "POST" })
       if (!res.ok) {
         const txt = await res.text();
         console.error("detail err", res.status, txt);
-        return {
-          summary_hi: "विवरण लोड नहीं हो सका",
-          why_trending_hi: "",
-          posts: [],
-          error: `AI ${res.status}`,
-        };
+        return { summary: "Could not load details", why_trending: "", posts: [], error: `AI ${res.status}` };
       }
       const json = await res.json();
       const args = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -304,11 +263,6 @@ export const getTrendDetail = createServerFn({ method: "POST" })
       return parsed;
     } catch (e) {
       console.error(e);
-      return {
-        summary_hi: "विवरण लोड नहीं हो सका",
-        why_trending_hi: "",
-        posts: [],
-        error: e instanceof Error ? e.message : "Unknown",
-      };
+      return { summary: "Could not load details", why_trending: "", posts: [], error: e instanceof Error ? e.message : "Unknown" };
     }
   });

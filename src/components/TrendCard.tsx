@@ -1,18 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { TrendingUp, Flame } from "lucide-react";
-import type { TrendingTag } from "@/server/trends.functions";
+import type { TrendingTag, CategoryKey } from "@/server/trends.functions";
 
-const categoryStyles: Record<string, string> = {
-  क्रिकेट: "bg-emerald-100 text-emerald-800",
-  मनोरंजन: "bg-pink-100 text-pink-800",
-  राजनीति: "bg-indigo-100 text-indigo-800",
-  समाचार: "bg-blue-100 text-blue-800",
-  त्योहार: "bg-amber-100 text-amber-900",
-  मौसम: "bg-sky-100 text-sky-800",
-  टेक: "bg-violet-100 text-violet-800",
-  बिज़नेस: "bg-teal-100 text-teal-800",
-  वायरल: "bg-rose-100 text-rose-800",
-  धार्मिक: "bg-orange-100 text-orange-800",
+const categoryStyles: Record<CategoryKey, string> = {
+  cricket: "bg-emerald-100 text-emerald-800",
+  entertainment: "bg-pink-100 text-pink-800",
+  politics: "bg-indigo-100 text-indigo-800",
+  news: "bg-blue-100 text-blue-800",
+  festival: "bg-amber-100 text-amber-900",
+  weather: "bg-sky-100 text-sky-800",
+  tech: "bg-violet-100 text-violet-800",
+  business: "bg-teal-100 text-teal-800",
+  viral: "bg-rose-100 text-rose-800",
+  religious: "bg-orange-100 text-orange-800",
 };
 
 export function TrendCard({ trend, index }: { trend: TrendingTag; index: number }) {
@@ -44,7 +44,7 @@ export function TrendCard({ trend, index }: { trend: TrendingTag; index: number 
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  categoryStyles[trend.category] ?? "bg-muted text-muted-foreground"
+                  categoryStyles[trend.category_key] ?? "bg-muted text-muted-foreground"
                 }`}
               >
                 {trend.category}
@@ -60,10 +60,10 @@ export function TrendCard({ trend, index }: { trend: TrendingTag; index: number 
             </div>
 
             <h3 className="font-bold text-base leading-tight text-foreground line-clamp-2">
-              {trend.title_hi}
+              {trend.title}
             </h3>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {trend.description_hi}
+              {trend.description}
             </p>
 
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/60">
