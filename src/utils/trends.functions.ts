@@ -131,6 +131,13 @@ export const getTrendingTags = createServerFn({ method: "GET" })
       return { trends: [], generated_at: new Date().toISOString(), error: "Too many requests, try later" };
     }
 
+    const today = new Date().toLocaleDateString("en-IN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
     try {
       const res = await fetch(AI_URL, {
         method: "POST",
@@ -192,24 +199,26 @@ export const getTrendingTags = createServerFn({ method: "GET" })
       if (!res.ok) {
         const txt = await res.text();
         console.error("AI gateway error", res.status, txt);
-        const errMsg = res.status === 429 ? "Too many requests, try later" : res.status === 402 ? "AI credits exhausted" : "AI gateway error";
+        const errMsg = res.status === 429 ? "Too many requests, try later" : res.status === 402 ? "AI credits exhausted" : "Failed to load trending topics. Please try again.";
         return { trends: [], generated_at: new Date().toISOString(), error: errMsg };
       }
 
       const json = await res.json();
       const args = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
       if (!args) {
-        return { trends: [], generated_at: new Date().toISOString(), error: "No tool call returned" };
+        return { trends: [], generated_at: new Date().toISOString(), error: "Failed to load trending topics. Please try again." };
       }
       const parsed = trendsSchema.parse(JSON.parse(args));
       const trends = parsed.trends.slice(0, 12).map((t, i) => ({ ...t, rank: i + 1 }) as TrendingTag);
-      return { trends, generated_at: new Date().toISOString() };
+      const payload = { trends, generated_at: new Date().toISOString() };
+      trendsCache.set(cacheKey, { at: Date.now(), payload });
+      return payload;
     } catch (e) {
       console.error("getTrendingTags failed", e);
       return {
         trends: [],
         generated_at: new Date().toISOString(),
-        error: e instanceof Error ? e.message : "Unknown error",
+        error: "Failed to load trending topics. Please try again.",
       };
     }
   });
