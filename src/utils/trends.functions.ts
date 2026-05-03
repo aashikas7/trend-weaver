@@ -1,8 +1,47 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { type LangCode, getLang } from "@/lib/languages";
 
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+// In-memory rate limiter (per server instance) — token bucket per IP
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 15;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(): string {
+  try {
+    const req = getRequest();
+    const h = req?.headers;
+    if (!h) return "unknown";
+    const fwd = h.get("x-forwarded-for") || h.get("cf-connecting-ip") || h.get("x-real-ip");
+    if (fwd) return fwd.split(",")[0].trim();
+  } catch {}
+  return "unknown";
+}
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= RATE_LIMIT_MAX) return false;
+  bucket.count++;
+  return true;
+}
+
+// Short-TTL cache for trending tags (per language)
+const TRENDS_CACHE_TTL_MS = 10 * 60_000;
+const trendsCache = new Map<string, { at: number; payload: { trends: TrendingTag[]; generated_at: string } }>();
+
+function sanitizeField(s: unknown, max: number): string {
+  if (typeof s !== "string") return "";
+  // Strip control chars and collapse whitespace; cap length
+  return s.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
 
 export const CATEGORY_KEYS = ["cricket", "entertainment", "politics", "news", "festival", "weather", "tech", "business", "viral", "religious"] as const;
 export type CategoryKey = (typeof CATEGORY_KEYS)[number];
