@@ -118,12 +118,18 @@ export const getTrendingTags = createServerFn({ method: "GET" })
     const langCode = (data?.lang ?? "hi") as LangCode;
     const lang = getLang(langCode);
 
-    const today = new Date().toLocaleDateString("en-IN", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    // Cache check
+    const cacheKey = `trends:${langCode}`;
+    const cached = trendsCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < TRENDS_CACHE_TTL_MS) {
+      return cached.payload;
+    }
+
+    // Rate limit per IP
+    const ip = getClientIp();
+    if (!checkRateLimit(`trends:${ip}`)) {
+      return { trends: [], generated_at: new Date().toISOString(), error: "Too many requests, try later" };
+    }
 
     try {
       const res = await fetch(AI_URL, {
